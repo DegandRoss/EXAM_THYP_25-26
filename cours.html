@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liste des Cours - THYP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        #filter {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        #cours-list {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .cours-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .cours-card h2 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .cours-id {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .etudiants {
+            margin-top: 15px;
+        }
+        
+        .etudiants h3 {
+            color: #34495e;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .etudiants ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .etudiants li {
+            padding: 5px 0;
+            color: #555;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        
+        .error {
+            background: #ffe6e6;
+            color: #c0392b;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        /* Responsive */
+        @media (min-width: 768px) {
+            #cours-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1440px) {
+            #cours-list {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Liste des Cours</h1>
+    
+    <input type="text" id="filter" placeholder="Filtrer les cours par titre ou code...">
+    
+    <div id="cours-list">
+        <div class="loading">Chargement des cours...</div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost/omeka-s/api';
+        let allCours = [];
+        
+        // Fonction pour récupérer les cours
+        async function getCours() {
+            try {
+                const response = await fetch(`${API_URL}/items?resource_class_label=Cours`);
+                if (!response.ok) throw new Error('Erreur lors de la récupération des cours');
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Erreur:', error);
+                return [];
+            }
+        }
+        
+        // Fonction pour récupérer les étudiants inscrits à un cours
+        async function getEtudiantsCours(coursId) {
+            try {
+                // Récupère tous les étudiants
+                const response = await fetch(`${API_URL}/items?resource_class_label=Étudiant`);
+                const etudiants = await response.json();
+                
+                // Pour cet exemple, on retourne tous les étudiants
+                // Dans une vraie application, il faudrait filtrer selon la relation avec le cours
+                return etudiants;
+            } catch (error) {
+                console.error('Erreur:', error);
+                return [];
+            }
+        }
+        
+        // Fonction pour afficher les cours
+        async function showCours(cours) {
+            const container = document.getElementById('cours-list');
+            
+            if (cours.length === 0) {
+                container.innerHTML = '<div class="loading">Aucun cours trouvé.</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            for (let c of cours) {
+                const coursCard = document.createElement('div');
+                coursCard.className = 'cours-card';
+                
+                // Récupère les propriétés du cours
+                const titre = c['dcterms:title'] ? c['dcterms:title'][0]['@value'] : 
+                              c['eval:titreCours'] ? c['eval:titreCours'][0]['@value'] : 'Sans titre';
+                const code = c['eval:codeCours'] ? c['eval:codeCours'][0]['@value'] : 'N/A';
+                
+                // Récupère les étudiants
+                const etudiants = await getEtudiantsCours(c['o:id']);
+                
+                let etudiantsHTML = '<p>Aucun étudiant inscrit</p>';
+                if (etudiants.length > 0) {
+                    etudiantsHTML = '<ul>';
+                    etudiants.forEach(e => {
+                        const nom = e['eval:nom'] ? e['eval:nom'][0]['@value'] : 'N/A';
+                        const prenom = e['eval:prenom'] ? e['eval:prenom'][0]['@value'] : 'N/A';
+                        etudiantsHTML += `<li>${prenom} ${nom}</li>`;
+                    });
+                    etudiantsHTML += '</ul>';
+                }
+                
+                coursCard.innerHTML = `
+                    <h2>${titre}</h2>
+                    <div class="cours-id">ID: ${c['o:id']} | Code: ${code}</div>
+                    <div class="etudiants">
+                        <h3>Étudiants inscrits:</h3>
+                        ${etudiantsHTML}
+                    </div>
+                `;
+                
+                container.appendChild(coursCard);
+            }
+        }
+        
+        // Fonction pour filtrer les cours
+        function filterCours() {
+            const filterValue = document.getElementById('filter').value.toLowerCase();
+            
+            const filteredCours = allCours.filter(c => {
+                const titre = c['dcterms:title'] ? c['dcterms:title'][0]['@value'].toLowerCase() : 
+                              c['eval:titreCours'] ? c['eval:titreCours'][0]['@value'].toLowerCase() : '';
+                const code = c['eval:codeCours'] ? c['eval:codeCours'][0]['@value'].toLowerCase() : '';
+                
+                return titre.includes(filterValue) || code.includes(filterValue);
+            });
+            
+            showCours(filteredCours);
+        }
+        
+        // Initialisation
+        async function init() {
+            try {
+                allCours = await getCours();
+                await showCours(allCours);
+                
+                // Ajoute l'événement de filtrage
+                document.getElementById('filter').addEventListener('input', filterCours);
+            } catch (error) {
+                document.getElementById('cours-list').innerHTML = 
+                    '<div class="error">Erreur lors du chargement des cours. Vérifiez que votre API Omeka S est accessible.</div>';
+            }
+        }
+        
+        // Lance l'initialisation au chargement de la page
+        init();
+    </script>
+</body>
+</html>
