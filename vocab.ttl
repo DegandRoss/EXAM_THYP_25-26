@@ -1,0 +1,96 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix eval: <http://example.org/evaluation#> .
+
+eval:Etudiant a rdfs:Class ;
+    rdfs:label "Étudiant" ;
+    rdfs:comment "Un étudiant inscrit dans un Master" .
+
+eval:Cours a rdfs:Class ;
+    rdfs:label "Cours" ;
+    rdfs:comment "Un cours dispensé dans le cadre du Master" .
+
+eval:Evaluation a rdfs:Class ;
+    rdfs:label "Évaluation" ;
+    rdfs:comment "Une évaluation d'un étudiant pour un cours" .
+
+eval:Enseignant a rdfs:Class ;
+    rdfs:label "Enseignant" ;
+    rdfs:comment "Un enseignant qui dispense des cours" .
+
+eval:Master a rdfs:Class ;
+    rdfs:label "Master" ;
+    rdfs:comment "Un programme de Master" .
+
+eval:nom a rdf:Property ;
+    rdfs:label "nom" ;
+    rdfs:comment "Le nom d'une personne" ;
+    rdfs:domain eval:Etudiant , eval:Enseignant ;
+    rdfs:range xsd:string .
+
+eval:prenom a rdf:Property ;
+    rdfs:label "prénom" ;
+    rdfs:comment "Le prénom d'une personne" ;
+    rdfs:domain eval:Etudiant , eval:Enseignant ;
+    rdfs:range xsd:string .
+
+eval:numeroEtudiant a rdf:Property ;
+    rdfs:label "numéro étudiant" ;
+    rdfs:comment "Le numéro d'identification de l'étudiant" ;
+    rdfs:domain eval:Etudiant ;
+    rdfs:range xsd:string .
+
+eval:titreCours a rdf:Property ;
+    rdfs:label "titre du cours" ;
+    rdfs:comment "Le titre du cours" ;
+    rdfs:domain eval:Cours ;
+    rdfs:range xsd:string .
+
+eval:codeCours a rdf:Property ;
+    rdfs:label "code du cours" ;
+    rdfs:comment "Le code unique du cours" ;
+    rdfs:domain eval:Cours ;
+    rdfs:range xsd:string .
+
+eval:note a rdf:Property ;
+    rdfs:label "note" ;
+    rdfs:comment "La note obtenue pour une évaluation" ;
+    rdfs:domain eval:Evaluation ;
+    rdfs:range xsd:float .
+
+eval:dateEvaluation a rdf:Property ;
+    rdfs:label "date d'évaluation" ;
+    rdfs:comment "La date de l'évaluation" ;
+    rdfs:domain eval:Evaluation ;
+    rdfs:range xsd:date .
+
+eval:estInscritDans a rdf:Property ;
+    rdfs:label "est inscrit dans" ;
+    rdfs:comment "Lie un étudiant à un cours" ;
+    rdfs:domain eval:Etudiant ;
+    rdfs:range eval:Cours .
+
+eval:aEvalue a rdf:Property ;
+    rdfs:label "a évalué" ;
+    rdfs:comment "Lie une évaluation à un étudiant" ;
+    rdfs:domain eval:Evaluation ;
+    rdfs:range eval:Etudiant .
+
+eval:concerneCours a rdf:Property ;
+    rdfs:label "concerne le cours" ;
+    rdfs:comment "Lie une évaluation à un cours" ;
+    rdfs:domain eval:Evaluation ;
+    rdfs:range eval:Cours .
+
+eval:enseigne a rdf:Property ;
+    rdfs:label "enseigne" ;
+    rdfs:comment "Lie un enseignant à un cours" ;
+    rdfs:domain eval:Enseignant ;
+    rdfs:range eval:Cours .
+
+eval:appartientAuMaster a rdf:Property ;
+    rdfs:label "appartient au Master" ;
+    rdfs:comment "Lie un cours à un programme de Master" ;
+    rdfs:domain eval:Cours ;
+    rdfs:range eval:Master .
