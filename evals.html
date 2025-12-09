@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Évaluations - THYP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* Formulaire */
+        .form-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .form-section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+        
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .btn {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        /* Liste des évaluations */
+        #evals-list {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .eval-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .eval-card h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .eval-info {
+            color: #555;
+            line-height: 1.6;
+        }
+        
+        .eval-info strong {
+            color: #333;
+        }
+        
+        .note {
+            font-size: 24px;
+            font-weight: bold;
+            color: #27ae60;
+            margin: 10px 0;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        
+        /* Responsive */
+        @media (min-width: 768px) {
+            #evals-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1440px) {
+            #evals-list {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gestion des Évaluations</h1>
+        
+        <!-- Formulaire de création d'évaluation -->
+        <div class="form-section">
+            <h2>Créer une évaluation</h2>
+            <form id="eval-form">
+                <div class="form-group">
+                    <label for="etudiant">Étudiant :</label>
+                    <select id="etudiant" required>
+                        <option value="">Chargement...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cours">Cours :</label>
+                    <select id="cours" required>
+                        <option value="">Chargement...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="note">Note :</label>
+                    <input type="number" id="note" min="0" max="20" step="0.5" required placeholder="Note sur 20">
+                </div>
+                
+                <div class="form-group">
+                    <label for="date">Date d'évaluation :</label>
+                    <input type="date" id="date" required>
+                </div>
+                
+                <button type="submit" class="btn" id="submit-btn">Créer l'évaluation</button>
+                
+                <div class="message" id="message"></div>
+            </form>
+        </div>
+        
+        <!-- Liste des évaluations -->
+        <h2>Liste des évaluations</h2>
+        <div id="evals-list">
+            <div class="loading">Chargement des évaluations...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost/omeka-s/api';
+        let etudiants = [];
+        let cours = [];
+        let evaluations = [];
+        
+        // Fonction pour créer une évaluation
+        async function setEval(etudiantId, coursId, note, date) {
+            try {
+                const response = await fetch(`${API_URL}/items`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        '@type': 'o:Item',
+                        'o:resource_class': {'o:id': getResourceClassId('Evaluation')},
+                        'o:resource_template': {'o:id': getTemplateId('Evaluation')},
+                        'eval:note': [
+                            {
+                                'type': 'literal',
+                                '@value': note.toString()
+                            }
+                        ],
+                        'eval:dateEvaluation': [
+                            {
+                                'type': 'literal',
+                                '@value': date
+                            }
+                        ],
+                        'eval:aEvalue': [
+                            {
+                                'type': 'resource',
+                                'value_resource_id': etudiantId
+                            }
+                        ],
+                        'eval:concerneCours': [
+                            {
+                                'type': 'resource',
+                                'value_resource_id': coursId
+                            }
+                        ]
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Erreur lors de la création');
+                return await response.json();
+            } catch (error) {
+                console.error('Erreur:', error);
+                throw error;
+            }
+        }
+        
+        // Fonctions utilitaires (simplifiées pour l'exemple)
+        function getResourceClassId(className) {
+            // Dans une vraie application, il faudrait récupérer l'ID depuis l'API
+            return 1; // ID fictif
+        }
+        
+        function getTemplateId(templateName) {
+            // Dans une vraie application, il faudrait récupérer l'ID depuis l'API
+            return 1; // ID fictif
+        }
+        
+        // Fonction pour récupérer les étudiants
+        async function getEtudiants() {
+            try {
+                const response = await fetch(`${API_URL}/items?resource_class_label=Étudiant`);
+                return await response.json();
+            } catch (error) {
+                console.error('Erreur:', error);
+                return [];
+            }
+        }
+        
+        // Fonction pour récupérer les cours
+        async function getCours() {
+            try {
+                const response = await fetch(`${API_URL}/items?resource_class_label=Cours`);
+                return await response.json();
+            } catch (error) {
+                console.error('Erreur:', error);
+                return [];
+            }
+        }
+        
+        // Fonction pour récupérer les évaluations
+        async function getEvaluations() {
+            try {
+                const response = await fetch(`${API_URL}/items?resource_class_label=Evaluation`);
+                return await response.json();
+            } catch (error) {
+                console.error('Erreur:', error);
+                return [];
+            }
+        }
+        
+        // Fonction pour afficher les évaluations
+        async function showEval(evals) {
+            const container = document.getElementById('evals-list');
+            
+            if (evals.length === 0) {
+                container.innerHTML = '<div class="loading">Aucune évaluation trouvée.</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            for (let ev of evals) {
+                const evalCard = document.createElement('div');
+                evalCard.className = 'eval-card';
+                
+                // Récupère les données
+                const id = ev['o:id'];
+                const note = ev['eval:note'] ? ev['eval:note'][0]['@value'] : 'N/A';
+                const date = ev['eval:dateEvaluation'] ? ev['eval:dateEvaluation'][0]['@value'] : 'N/A';
+                
+                // Récupère l'étudiant lié
+                let etudiantNom = 'N/A';
+                if (ev['eval:aEvalue'] && ev['eval:aEvalue'][0]) {
+                    const etudiantId = ev['eval:aEvalue'][0]['value_resource_id'];
+                    const etudiant = etudiants.find(e => e['o:id'] === etudiantId);
+                    if (etudiant) {
+                        const nom = etudiant['eval:nom'] ? etudiant['eval:nom'][0]['@value'] : '';
+                        const prenom = etudiant['eval:prenom'] ? etudiant['eval:prenom'][0]['@value'] : '';
+                        etudiantNom = `${prenom} ${nom}`;
+                    }
+                }
+                
+                // Récupère le cours lié
+                let coursNom = 'N/A';
+                if (ev['eval:concerneCours'] && ev['eval:concerneCours'][0]) {
+                    const coursId = ev['eval:concerneCours'][0]['value_resource_id'];
+                    const c = cours.find(co => co['o:id'] === coursId);
+                    if (c) {
+                        coursNom = c['eval:titreCours'] ? c['eval:titreCours'][0]['@value'] : 
+                                   c['dcterms:title'] ? c['dcterms:title'][0]['@value'] : 'N/A';
+                    }
+                }
+                
+                evalCard.innerHTML = `
+                    <h3>Évaluation #${id}</h3>
+                    <div class="note">Note: ${note}/20</div>
+                    <div class="eval-info">
+                        <p><strong>Étudiant:</strong> ${etudiantNom}</p>
+                        <p><strong>Cours:</strong> ${coursNom}</p>
+                        <p><strong>Date:</strong> ${date}</p>
+                    </div>
+                `;
+                
+                container.appendChild(evalCard);
+            }
+        }
+        
+        // Charger les sélecteurs
+        async function loadSelectors() {
+            etudiants = await getEtudiants();
+            cours = await getCours();
+            
+            const etudiantSelect = document.getElementById('etudiant');
+            const coursSelect = document.getElementById('cours');
+            
+            etudiantSelect.innerHTML = '<option value="">-- Sélectionnez un étudiant --</option>';
+            etudiants.forEach(e => {
+                const nom = e['eval:nom'] ? e['eval:nom'][0]['@value'] : '';
+                const prenom = e['eval:prenom'] ? e['eval:prenom'][0]['@value'] : '';
+                etudiantSelect.innerHTML += `<option value="${e['o:id']}">${prenom} ${nom}</option>`;
+            });
+            
+            coursSelect.innerHTML = '<option value="">-- Sélectionnez un cours --</option>';
+            cours.forEach(c => {
+                const titre = c['eval:titreCours'] ? c['eval:titreCours'][0]['@value'] : 
+                             c['dcterms:title'] ? c['dcterms:title'][0]['@value'] : 'Sans titre';
+                coursSelect.innerHTML += `<option value="${c['o:id']}">${titre}</option>`;
+            });
+        }
+        
+        // Gestion du formulaire
+        document.getElementById('eval-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submit-btn');
+            const message = document.getElementById('message');
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Création en cours...';
+            message.style.display = 'none';
+            
+            try {
+                const etudiantId = parseInt(document.getElementById('etudiant').value);
+                const coursId = parseInt(document.getElementById('cours').value);
+                const note = parseFloat(document.getElementById('note').value);
+                const date = document.getElementById('date').value;
+                
+                await setEval(etudiantId, coursId, note, date);
+                
+                message.className = 'message success';
+                message.textContent = 'Évaluation créée avec succès !';
+                message.style.display = 'block';
+                
+                // Recharge les évaluations
+                evaluations = await getEvaluations();
+                await showEval(evaluations);
+                
+                // Réinitialise le formulaire
+                e.target.reset();
+            } catch (error) {
+                message.className = 'message error';
+                message.textContent = 'Erreur lors de la création de l\'évaluation.';
+                message.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Créer l\'évaluation';
+            }
+        });
+        
+        // Initialisation
+        async function init() {
+            await loadSelectors();
+            evaluations = await getEvaluations();
+            await showEval(evaluations);
+            
+            // Définit la date du jour par défaut
+            document.getElementById('date').valueAsDate = new Date();
+        }
+        
+        init();
+    </script>
+</body>
+</html>
